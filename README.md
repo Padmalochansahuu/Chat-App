@@ -119,4 +119,12 @@ To build a **modern**, **responsive**, and **reliable** chat application using o
 - Firebase Authentication rules applied for all reads/writes
 
 ---
+## 📩 Contact
 
+If you like the design ..  feel free to contact me:
+
+**📧 Email:** sahupadmalochan209@gmail.com
+
+---
+
+Thank you! ⭐ If you like this project, give it a star and follow for more design drops and app UI kits.
