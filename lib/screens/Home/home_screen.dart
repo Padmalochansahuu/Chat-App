@@ -771,8 +771,9 @@ class _UserTileState extends State<UserTile> {
                 child: Text(
                   isMyMessage ? 'You: $messageText' : messageText,
                   style: AppTheme.body.copyWith(
-                    color: Colors.grey,
+                    color: messageText == 'This message was deleted' ? Colors.grey : Colors.black54,
                     fontSize: 12,
+                    fontStyle: messageText == 'This message was deleted' ? FontStyle.italic : FontStyle.normal,
                     fontWeight: isMyMessage ? FontWeight.w500 : FontWeight.normal,
                   ),
                   maxLines: 1,
@@ -1170,93 +1171,95 @@ class _GroupTileState extends State<GroupTile> {
           ],
         ),
         subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            StreamBuilder<DatabaseEvent>(
-              stream: _database.child('groups/${widget.groupId}/messages').orderByChild('timestamp').limitToLast(1).onValue,
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                  final messages = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-                  if (messages.isNotEmpty) {
-                    final lastMessage = messages.values.first as Map<dynamic, dynamic>;
-                    final messageText = lastMessage['text']?.toString() ?? 'No messages yet';
-                    final senderId = lastMessage['senderId']?.toString() ?? '';
-                    final status = lastMessage['status']?.toString() ?? 'sent';
-                    final currentUserId = widget.currentUserId;
-                    final isMyMessage = senderId == currentUserId;
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    StreamBuilder<DatabaseEvent>(
+      stream: _database.child('groups/${widget.groupId}/messages').orderByChild('timestamp').limitToLast(1).onValue,
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+          final messages = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+          if (messages.isNotEmpty) {
+            final lastMessage = messages.values.first as Map<dynamic, dynamic>;
+            final messageText = lastMessage['text']?.toString() ?? 'No messages yet';
+            final senderId = lastMessage['senderId']?.toString() ?? '';
+            final status = lastMessage['status']?.toString() ?? 'sent';
+            final currentUserId = widget.currentUserId;
+            final isMyMessage = senderId == currentUserId;
 
-                    return Row(
-                      children: [
-                        if (isMyMessage)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4.0),
-                            child: Icon(
-                              status == 'seen' ? Icons.done_all : Icons.done,
-                              size: 12,
-                              color: status == 'seen' ? Colors.blue : Colors.grey,
-                            ),
-                          ),
-                        Expanded(
-                          child: Text(
-                            currentUserId != null && isMyMessage ? 'You: $messageText' : messageText,
-                            style: AppTheme.body.copyWith(
-                              color: Colors.grey,
-                              fontSize: 12,
-                              fontWeight: currentUserId != null && isMyMessage ? FontWeight.w500 : FontWeight.normal,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                }
-                return Text(
-                  widget.lastMessage.isNotEmpty ? widget.lastMessage : 'No messages yet',
-                  style: AppTheme.body.copyWith(color: Colors.grey, fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                );
-              },
-            ),
-            const SizedBox(height: 2),
-            if (widget.currentUserId != null)
-              StreamBuilder<DatabaseEvent>(
-                stream: _database.child('groups/${widget.groupId}/messages').orderByChild('recipientId').equalTo(widget.currentUserId).onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                    final messages = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-                    final unreadCount = messages.values
-                        .where((message) =>
-                            (message as Map)['recipientId'] == widget.currentUserId &&
-                            (message['status'] ?? 'sent') != 'seen')
-                        .length;
+            return Row(
+              children: [
+                if (isMyMessage)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4.0),
+                    child: Icon(
+                      status == 'seen' ? Icons.done_all : Icons.done,
+                      size: 12,
+                      color: status == 'seen' ? Colors.blue : Colors.grey,
+                    ),
+                  ),
+                Expanded(
+                  child: Text(
+                    currentUserId != null && isMyMessage ? 'You: $messageText' : messageText,
+                    style: AppTheme.body.copyWith(
+                      color: messageText == 'This message was deleted' ? Colors.grey : Colors.black54,
+                      fontSize: 12,
+                      fontStyle: messageText == 'This message was deleted' ? FontStyle.italic : FontStyle.normal,
+                      fontWeight: currentUserId != null && isMyMessage ? FontWeight.w500 : null,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            );
+          }
+        }
+        return Text(
+          widget.lastMessage.isNotEmpty ? widget.lastMessage : 'No messages yet',
+          style: AppTheme.body.copyWith(color: Colors.grey, fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      },
+    ),
+    const SizedBox(height: 2),
+    if (widget.currentUserId != null)
+      StreamBuilder<DatabaseEvent>(
+        stream: _database.child('groups/${widget.groupId}/messages').orderByChild('recipientId').equalTo(widget.currentUserId).onValue,
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+            final messages = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+            final unreadCount = messages.values
+                .where((message) =>
+                    (message as Map)['recipientId'] == widget.currentUserId &&
+                    (message['status'] ?? 'sent') != 'seen' &&
+                    (message['deleted'] != true && (message['deletedFor'] == null || !(message['deletedFor'] as Map).containsKey(widget.currentUserId))))
+                .length;
 
-                    if (unreadCount > 0) {
-                      return Container(
-                        margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-          ],
-        ),
+            if (unreadCount > 0) {
+              return Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  unreadCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            }
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+  ],
+),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,

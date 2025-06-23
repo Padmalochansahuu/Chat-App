@@ -112,42 +112,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (kIsWeb) {
-      return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Chat App',
-        theme: AppTheme.lightTheme,
-        navigatorKey: _navigatorKey,
-        navigatorObservers: [_routeObserver],
-        home: const SplashScreen(),
-        routes: {
-          '/splash': (context) => const SplashScreen(),
-          '/login': (context) => const LoginScreen(),
-          '/registration': (context) => const RegistrationScreen(),
-          '/forgot_password': (context) => const ForgotPasswordScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/chat': (context) => const ChatScreen(),
-          '/profile': (context) => const ProfileScreen(),
-          '/group': (context) => const GroupCreationScreen(),
-        },
-      );
-    }
-
-    return StreamBuilder<bool>(
-      stream: NetworkCheck().connectivityStream,
-      initialData: NetworkCheck().isConnected,
-      builder: (context, snapshot) {
-        final isConnected = snapshot.data ?? true;
-
-        return MaterialApp(
+@override
+Widget build(BuildContext context) {
+  Widget app = kIsWeb
+      ? MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'Chat App',
           theme: AppTheme.lightTheme,
           navigatorKey: _navigatorKey,
           navigatorObservers: [_routeObserver],
-          home: NetworkAwareWrapper(isConnected: isConnected),
+          home: const SplashScreen(),
           routes: {
             '/splash': (context) => const SplashScreen(),
             '/login': (context) => const LoginScreen(),
@@ -158,10 +132,41 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             '/profile': (context) => const ProfileScreen(),
             '/group': (context) => const GroupCreationScreen(),
           },
+        )
+      : StreamBuilder<bool>(
+          stream: NetworkCheck().connectivityStream,
+          initialData: NetworkCheck().isConnected,
+          builder: (context, snapshot) {
+            final isConnected = snapshot.data ?? true;
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: 'Chat App',
+              theme: AppTheme.lightTheme,
+              navigatorKey: _navigatorKey,
+              navigatorObservers: [_routeObserver],
+              home: NetworkAwareWrapper(isConnected: isConnected),
+              routes: {
+                '/splash': (context) => const SplashScreen(),
+                '/login': (context) => const LoginScreen(),
+                '/registration': (context) => const RegistrationScreen(),
+                '/forgot_password': (context) => const ForgotPasswordScreen(),
+                '/home': (context) => const HomeScreen(),
+                '/chat': (context) => const ChatScreen(),
+                '/profile': (context) => const ProfileScreen(),
+                '/group': (context) => const GroupCreationScreen(),
+              },
+            );
+          },
         );
-      },
-    );
-  }
+
+  // Apply maxWidth constraint for web
+  return Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 1600),
+      child: app,
+    ),
+  );
+}
 }
 
 class NetworkAwareWrapper extends StatefulWidget {

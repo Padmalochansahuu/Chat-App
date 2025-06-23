@@ -612,7 +612,70 @@ class AuthService {
       }
     }
   }
+Future<void> deleteMessageForMe(String chatId, String messageId, bool isGroup) async {
+  if (!await isAuthenticated()) return;
 
+  final currentUser = _auth.currentUser;
+  if (currentUser == null) return;
+
+  try {
+    final messageRef = _database.child(isGroup ? 'groups/$chatId/messages/$messageId' : 'chats/$chatId/messages/$messageId');
+    await messageRef.update({
+      'deletedFor.${currentUser.uid}': true,
+    });
+    print('Message $messageId deleted for user ${currentUser.uid} in ${isGroup ? 'group' : 'chat'} $chatId');
+  } catch (e) {
+    print('Error deleting message for me: $e');
+    if (e.toString().contains('permission_denied')) {
+      await refreshToken();
+    }
+    rethrow;
+  }
+}
+
+Future<void> deleteMessageForEveryone(String chatId, String messageId, bool isGroup) async {
+  if (!await isAuthenticated()) return;
+
+  final currentUser = _auth.currentUser;
+  if (currentUser == null) return;
+
+  try {
+    final messageRef = _database.child(isGroup ? 'groups/$chatId/messages/$messageId' : 'chats/$chatId/messages/$messageId');
+    final snapshot = await messageRef.once();
+    if (snapshot.snapshot.value != null) {
+      final messageData = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+      if (messageData['senderId'] != currentUser.uid) {
+        throw Exception('Only the sender can delete this message for everyone');
+      }
+      await messageRef.update({
+        'deleted': true,
+        'text': 'This message was deleted',
+      });
+
+      // Update lastMessage if this was the most recent message
+      final messagesRef = _database.child(isGroup ? 'groups/$chatId/messages' : 'chats/$chatId/messages');
+      final query = messagesRef.orderByChild('timestamp').limitToLast(1);
+      final latestSnapshot = await query.once();
+      if (latestSnapshot.snapshot.value != null) {
+        final latestMessages = Map<String, dynamic>.from(latestSnapshot.snapshot.value as Map);
+        if (latestMessages.containsKey(messageId)) {
+          await _database.child(isGroup ? 'groups/$chatId' : 'chats/$chatId').update({
+            'lastMessage': 'This message was deleted',
+            'lastUpdated': ServerValue.timestamp,
+          });
+        }
+      }
+
+      print('Message $messageId deleted for everyone in ${isGroup ? 'group' : 'chat'} $chatId');
+    }
+  } catch (e) {
+    print('Error deleting message for everyone: $e');
+    if (e.toString().contains('permission_denied')) {
+      await refreshToken();
+    }
+    rethrow;
+  }
+}
   void dispose() {
     _stopTokenRefreshTimer();
     _stopPresenceMonitoring();
