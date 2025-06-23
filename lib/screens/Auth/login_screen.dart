@@ -112,142 +112,177 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _passwordController.dispose();
     super.dispose();
   }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+      ),
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth > 600 ? 400.0 : constraints.maxWidth * 0.9;
+            final padding = constraints.maxWidth > 600 ? 32.0 : 24.0;
+            final iconSize = constraints.maxWidth > 600 ? 120.0 : 100.0;
+            final textScaleFactor = constraints.maxWidth > 1200 ? 1.2 : 1.0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // App logo
-                      Image.asset(
-                        'assets/icon/icon.png',
-                        width: 100,
-                        height: 100,
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Chat App', style: AppTheme.headline),
-                      const SizedBox(height: 8),
-                      Text('Connect with friends', style: AppTheme.subtitle),
-                      const SizedBox(height: 32),
-                      // Email field
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: AppTheme.textFieldDecoration('Email'),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your email.';
-                          }
-                          if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value.trim())) {
-                            return 'Please enter a valid email.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // Password field
-                      TextFormField(
-                        controller: _passwordController,
-                        decoration: AppTheme.textFieldDecoration('Password').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              color: Colors.grey,
+            return Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: padding),
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // App logo
+                          Image.asset(
+                            'assets/icon/icon.png',
+                            width: iconSize,
+                            height: iconSize,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Chat App',
+                            style: AppTheme.headline.copyWith(
+                              fontSize: 24 * textScaleFactor,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Connect with friends',
+                            style: AppTheme.subtitle.copyWith(
+                              fontSize: 14 * textScaleFactor,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          // Email field
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: AppTheme.textFieldDecoration('Email'),
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(fontSize: 16 * textScaleFactor),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter your email.';
+                              }
+                              if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+                                  .hasMatch(value.trim())) {
+                                return 'Please enter a valid email.';
+                              }
+                              return null;
                             },
                           ),
-                        ),
-                        obscureText: _obscurePassword,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      // Forgot Password link
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _showForgotPasswordScreen,
-                          child: Text(
-                            'Forgot Password?',
-                            style: AppTheme.body.copyWith(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Login button
-                      ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.primaryGradient,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 8,
-                                offset: Offset(0, 4),
+                          const SizedBox(height: 16),
+                          // Password field
+                          TextFormField(
+                            controller: _passwordController,
+                            decoration: AppTheme.textFieldDecoration('Password').copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                  size: 20 * textScaleFactor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
-                            ],
+                            ),
+                            obscureText: _obscurePassword,
+                            style: TextStyle(fontSize: 16 * textScaleFactor),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password.';
+                              }
+                              return null;
+                            },
                           ),
-                          child: ElevatedButton(
-                            style: AppTheme.elevatedButtonStyle,
-                            onPressed: _isLoading ? null : _login,
-                            child: Container(
-                              width: double.infinity,
-                              alignment: Alignment.center,
-                              child: _isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white, 
-                                      strokeWidth: 2
-                                    )
-                                  : Text('Login', style: AppTheme.buttonText),
+                          const SizedBox(height: 8),
+                          // Forgot Password link
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _showForgotPasswordScreen,
+                              child: Text(
+                                'Forgot Password?',
+                                style: AppTheme.body.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 14 * textScaleFactor,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          // Login button
+                          ScaleTransition(
+                            scale: _scaleAnimation,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                style: AppTheme.elevatedButtonStyle.copyWith(
+                                  minimumSize: WidgetStateProperty.all(
+                                    Size(double.infinity, 50 * textScaleFactor),
+                                  ),
+                                ),
+                                onPressed: _isLoading ? null : _login,
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      )
+                                    : Text(
+                                        'Login',
+                                        style: AppTheme.buttonText.copyWith(
+                                          fontSize: 16 * textScaleFactor,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Sign up link
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+                              );
+                            },
+                            child: Text(
+                              'Don\'t have an account? Sign Up',
+                              style: AppTheme.body.copyWith(
+                                color: Colors.white,
+                                fontSize: 14 * textScaleFactor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      // Sign up link
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const RegistrationScreen()),
-                          );
-                        },
-                        child: Text(
-                          'Don\'t have an account? Sign Up',
-                          style: AppTheme.body.copyWith(color: Colors.white),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
-    );
+   ) );
   }
 }

@@ -109,205 +109,244 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+        onPressed: () => Navigator.of(context).pop(),
       ),
-      extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // App logo
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
+    ),
+    extendBodyBehindAppBar: true,
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+      ),
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth > 600 ? 400.0 : constraints.maxWidth * 0.9;
+            final padding = constraints.maxWidth > 600 ? 32.0 : 24.0;
+            final iconSize = constraints.maxWidth > 600 ? 70.0 : 60.0;
+            final textScaleFactor = constraints.maxWidth > 1200 ? 1.2 : 1.0;
+
+            return Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: padding),
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // App logo
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.1),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Image.asset(
-                          'assets/icon/icon.png',
-                          width: 60,
-                          height: 60,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text('Create Account', style: AppTheme.headline),
-                      const SizedBox(height: 8),
-                      Text('Join the chat community', style: AppTheme.subtitle),
-                      const SizedBox(height: 32),
-                      // Name field
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: AppTheme.textFieldDecoration('Name').copyWith(
-                          prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your name.';
-                          }
-                          if (value.trim().length < 2) {
-                            return 'Name must be at least 2 characters.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // Email field
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: AppTheme.textFieldDecoration('Email').copyWith(
-                          prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your email.';
-                          }
-                          if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value.trim())) {
-                            return 'Please enter a valid email.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // Password field
-                      TextFormField(
-                        controller: _passwordController,
-                        decoration: AppTheme.textFieldDecoration('Password').copyWith(
-                          prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              color: Colors.grey,
+                            child: Image.asset(
+                              'assets/icon/icon.png',
+                              width: iconSize,
+                              height: iconSize,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Create Account',
+                            style: AppTheme.headline.copyWith(
+                              fontSize: 24 * textScaleFactor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Join the chat community',
+                            style: AppTheme.subtitle.copyWith(
+                              fontSize: 14 * textScaleFactor,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          // Name field
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: AppTheme.textFieldDecoration('Name').copyWith(
+                              prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+                            ),
+                            style: TextStyle(fontSize: 16 * textScaleFactor),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter your name.';
+                              }
+                              if (value.trim().length < 2) {
+                                return 'Name must be at least 2 characters.';
+                              }
+                              return null;
                             },
                           ),
-                        ),
-                        obscureText: _obscurePassword,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password.';
-                          }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // Confirm password field
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        decoration: AppTheme.textFieldDecoration('Confirm Password').copyWith(
-                          prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                              color: Colors.grey,
+                          const SizedBox(height: 16),
+                          // Email field
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: AppTheme.textFieldDecoration('Email').copyWith(
+                              prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
-                              });
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(fontSize: 16 * textScaleFactor),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter your email.';
+                              }
+                              if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+                                  .hasMatch(value.trim())) {
+                                return 'Please enter a valid email.';
+                              }
+                              return null;
                             },
                           ),
-                        ),
-                        obscureText: _obscureConfirmPassword,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please confirm your password.';
-                          }
-                          if (value != _passwordController.text) {
-                            return 'Passwords do not match.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      // Register button
-                      ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.primaryGradient,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
+                          const SizedBox(height: 16),
+                          // Password field
+                          TextFormField(
+                            controller: _passwordController,
+                            decoration: AppTheme.textFieldDecoration('Password').copyWith(
+                              prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                  size: 20 * textScaleFactor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
-                            ],
+                            ),
+                            obscureText: _obscurePassword,
+                            style: TextStyle(fontSize: 16 * textScaleFactor),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password.';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters.';
+                              }
+                              return null;
+                            },
                           ),
-                          child: ElevatedButton(
-                            style: AppTheme.elevatedButtonStyle,
-                            onPressed: _isLoading ? null : _register,
+                          const SizedBox(height: 16),
+                          // Confirm password field
+                          TextFormField(
+                            controller: _confirmPasswordController,
+                            decoration:
+                                AppTheme.textFieldDecoration('Confirm Password').copyWith(
+                              prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey,
+                                  size: 20 * textScaleFactor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  });
+                                },
+                              ),
+                            ),
+                            obscureText: _obscureConfirmPassword,
+                            style: TextStyle(fontSize: 16 * textScaleFactor),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please confirm your password.';
+                              }
+                              if (value != _passwordController.text) {
+                                return 'Passwords do not match.';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          // Register button
+                          ScaleTransition(
+                            scale: _scaleAnimation,
                             child: Container(
-                              width: double.infinity,
-                              alignment: Alignment.center,
-                              child: _isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white, 
-                                      strokeWidth: 2
-                                    )
-                                  : Text('Register', style: AppTheme.buttonText),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                style: AppTheme.elevatedButtonStyle.copyWith(
+                                  minimumSize: WidgetStateProperty.all(
+                                    Size(double.infinity, 50 * textScaleFactor),
+                                  ),
+                                ),
+                                onPressed: _isLoading ? null : _register,
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      )
+                                    : Text(
+                                        'Register',
+                                        style: AppTheme.buttonText.copyWith(
+                                          fontSize: 16 * textScaleFactor,
+                                        ),
+                                      ),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          // Login link
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            icon: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 18 * textScaleFactor,
+                            ),
+                            label: Text(
+                              'Already have an account? Login',
+                              style: AppTheme.body.copyWith(
+                                color: Colors.white,
+                                fontSize: 14 * textScaleFactor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      // Login link
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        label: Text(
-                          'Already have an account? Login',
-                          style: AppTheme.body.copyWith(color: Colors.white),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
-    );
+  ));
   }
 }
