@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'package:chatapp/notification/custom_notification.dart';
 import 'package:chatapp/services/auth_services.dart';
@@ -344,93 +343,95 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           });
         },
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/images/pattern.png"), // Ensure this asset exists
-                  fit: BoxFit.cover,
-                  opacity: 0.06,
+      // THIS IS THE ONLY CHANGE: Added SafeArea to the body
+      body: SafeArea(
+        top: false, // AppBar already handles the top safe area
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage("assets/images/pattern.png"), // Ensure this asset exists
+                    fit: BoxFit.cover,
+                    opacity: 0.06,
+                  ),
+                ),
+                child: StreamBuilder<DatabaseEvent>(
+                  stream: _database.child(_isGroup ? 'groups/$_chatId/messages' : 'chats/$_chatId/messages').orderByChild('timestamp').onValue,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}', style: AppTheme.body));
+                    }
+                    if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+                      return _EmptyChatView();
+                    }
+
+                    final messagesData = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+                    final messages = messagesData.entries.map((e) {
+                      return {'key': e.key, ...Map<String, dynamic>.from(e.value as Map)};
+                    }).toList();
+
+                    messages.sort((a, b) => (a['timestamp'] as int? ?? 0).compareTo(b['timestamp'] as int? ?? 0));
+                    
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        final isSentByMe = message['senderId'] == _currentUserId;
+                        final isDeletedForMe = message['deletedFor'] != null &&
+                            (message['deletedFor'] as Map).containsKey(_currentUserId) &&
+                            message['deletedFor'][_currentUserId] == true;
+
+                        if (isDeletedForMe) {
+                          return const SizedBox.shrink(); // Hide message if deleted for me
+                        }
+
+                        return GestureDetector(
+                          onLongPress: () => _showDeleteOptions(message['key'], isSentByMe),
+                          child: _MessageBubble(
+                            message: message,
+                            isSentByMe: isSentByMe,
+                            isGroup: _isGroup,
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
-              child: StreamBuilder<DatabaseEvent>(
-                stream: _database.child(_isGroup ? 'groups/$_chatId/messages' : 'chats/$_chatId/messages').orderByChild('timestamp').onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
-                  }
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}', style: AppTheme.body));
-                  }
-                  if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-                    return _EmptyChatView();
-                  }
-
-                  final messagesData = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-                  final messages = messagesData.entries.map((e) {
-                    return {'key': e.key, ...Map<String, dynamic>.from(e.value as Map)};
-                  }).toList();
-
-                  // Sorting is handled by the query now, but this is a safe fallback
-                  messages.sort((a, b) => (a['timestamp'] as int? ?? 0).compareTo(b['timestamp'] as int? ?? 0));
-                  
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      final isSentByMe = message['senderId'] == _currentUserId;
-                      // This part handles your original logic for deleted messages
-                      final isDeletedForMe = message['deletedFor'] != null &&
-                          (message['deletedFor'] as Map).containsKey(_currentUserId) &&
-                          message['deletedFor'][_currentUserId] == true;
-
-                      if (isDeletedForMe) {
-                        return const SizedBox.shrink(); // Hide message if deleted for me
-                      }
-
-                      return GestureDetector(
-                        onLongPress: () => _showDeleteOptions(message['key'], isSentByMe),
-                        child: _MessageBubble(
-                          message: message,
-                          isSentByMe: isSentByMe,
-                          isGroup: _isGroup,
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
             ),
-          ),
-          _TypingIndicator(
-            chatId: _chatId!,
-            isGroup: _isGroup,
-            currentUserId: _currentUserId!,
-          ),
-          _MessageInputBar(
-            controller: _messageController,
-            onSendPressed: () {
-              if (_isGroup && _groupId != null) {
-                _sendMessage(_groupId!, _name!);
-              } else if (_recipientId != null) {
-                _sendMessage(_recipientId!, _name!);
-              }
-            },
-            isLoading: _isLoading,
-          ),
-        ],
+            _TypingIndicator(
+              chatId: _chatId!,
+              isGroup: _isGroup,
+              currentUserId: _currentUserId!,
+            ),
+            _MessageInputBar(
+              controller: _messageController,
+              onSendPressed: () {
+                if (_isGroup && _groupId != null) {
+                  _sendMessage(_groupId!, _name!);
+                } else if (_recipientId != null) {
+                  _sendMessage(_recipientId!, _name!);
+                }
+              },
+              isLoading: _isLoading,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// --- NEW, PURELY-UI HELPER WIDGETS ---
+// --- ALL HELPER WIDGETS ARE UNCHANGED ---
 
 class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String name;
@@ -568,7 +569,6 @@ class _MessageBubble extends StatelessWidget {
                 style: TextStyle(fontSize: 16, color: textColor, fontStyle: isDeletedForAll ? FontStyle.italic : FontStyle.normal),
                 children: [
                   TextSpan(text: text),
-                  // This makes space for the time and status icon
                   const TextSpan(text: ' \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'),
                 ],
               ),
