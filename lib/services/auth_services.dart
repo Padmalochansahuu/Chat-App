@@ -1,4 +1,3 @@
-
 import 'package:chatapp/model/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -178,8 +177,7 @@ class AuthService {
         );
         await _firestore.collection('users').doc(credential.user!.uid).set(userModel.toJson());
         await updatePresence(true);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', credential.user!.uid);
+        await _clearSession(); // Clear session to prevent auto-login
         print('Registration successful for user: ${credential.user!.uid}');
         return userModel;
       }
@@ -231,10 +229,12 @@ class AuthService {
       return signInMethods.isNotEmpty;
     } catch (e) {
       print('Error checking email: $e');
-      throw FirebaseAuthException(
-        code: 'unknown-error',
-        message: 'Unable to verify email. Please try again.',
-      );
+      // Handle specific Firebase errors
+      if (e is FirebaseAuthException && e.code == 'invalid-email') {
+        throw e; // Rethrow invalid email errors
+      }
+      // For other errors (e.g., network issues), assume email might exist to avoid false negatives
+      return true;
     }
   }
 
@@ -248,20 +248,30 @@ class AuthService {
           message: 'Please enter a valid email address.',
         );
       }
-      final emailExists = await checkEmailExists(normalizedEmail);
-      if (!emailExists) {
-        throw FirebaseAuthException(
-          code: 'user-not-found',
-          message: 'No account found with this email address.',
-        );
-      }
       await _auth.sendPasswordResetEmail(email: normalizedEmail);
       print('Password reset email sent successfully to: $normalizedEmail');
     } catch (e) {
       print('Error sending password reset email: $e');
-      rethrow;
+      // Handle specific Firebase errors
+      if (e is FirebaseAuthException) {
+        if (e.code == 'user-not-found') {
+          throw FirebaseAuthException(
+            code: 'user-not-found',
+            message: 'No account found with this email address.',
+          );
+        } else if (e.code == 'invalid-email') {
+          throw e;
+        }
+      }
+      // For other errors, throw a generic error
+      throw FirebaseAuthException(
+        code: 'unknown-error',
+        message: 'Unable to send password reset email. Please try again.',
+      );
     }
   }
+
+
 
   Future<void> updatePresence(bool isOnline) async {
     final currentUser = _auth.currentUser;
@@ -441,7 +451,7 @@ class AuthService {
     await prefs.remove('photoUrl');
 
     _stopTokenRefreshTimer();
-    _stopPresenceMonitoring();
+ _stopPresenceMonitoring();
 
     await _auth.signOut();
     print('Logout successful');
@@ -508,39 +518,39 @@ class AuthService {
   }
 
   Future<void> markChatMessagesAsSeen(String chatId, String currentUserId) async {
-  if (!await isAuthenticated()) return;
+    if (!await isAuthenticated()) return;
 
-  try {
-    final messagesRef = _database.child('chats/$chatId/messages');
-    final query = messagesRef.orderByChild('recipientId').equalTo(currentUserId);
-    final snapshot = await query.once();
+    try {
+      final messagesRef = _database.child('chats/$chatId/messages');
+      final query = messagesRef.orderByChild('recipientId').equalTo(currentUserId);
+      final snapshot = await query.once();
 
-    if (snapshot.snapshot.value != null) {
-      final messages = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
-      final updates = <String, dynamic>{};
+      if (snapshot.snapshot.value != null) {
+        final messages = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+        final updates = <String, dynamic>{};
 
-      for (var entry in messages.entries) {
-        final messageData = Map<String, dynamic>.from(entry.value as Map);
-        if (messageData['status'] != 'seen' && messageData['recipientId'] == currentUserId) {
-          updates['chats/$chatId/messages/${entry.key}/status'] = 'seen';
+        for (var entry in messages.entries) {
+          final messageData = Map<String, dynamic>.from(entry.value as Map);
+          if (messageData['status'] != 'seen' && messageData['recipientId'] == currentUserId) {
+            updates['chats/$chatId/messages/${entry.key}/status'] = 'seen';
+          }
+        }
+
+        // Reset unread count
+        updates['chats/$chatId/unread/$currentUserId'] = 0;
+
+        if (updates.isNotEmpty) {
+          await _database.update(updates);
+          print('Marked ${updates.length ~/ 2} messages as seen and reset unread count in chat: $chatId');
         }
       }
-
-      // Reset unread count
-      updates['chats/$chatId/unread/$currentUserId'] = 0;
-
-      if (updates.isNotEmpty) {
-        await _database.update(updates);
-        print('Marked ${updates.length ~/ 2} messages as seen and reset unread count in chat: $chatId');
+    } catch (e) {
+      print('Error marking messages as seen: $e');
+      if (e.toString().contains('permission_denied')) {
+        await refreshToken();
       }
     }
-  } catch (e) {
-    print('Error marking messages as seen: $e');
-    if (e.toString().contains('permission_denied')) {
-      await refreshToken();
-    }
   }
-}
 
   Future<void> markGroupMessagesAsSeen(String groupId, String currentUserId) async {
     if (!await isAuthenticated()) return;
@@ -612,70 +622,72 @@ class AuthService {
       }
     }
   }
-Future<void> deleteMessageForMe(String chatId, String messageId, bool isGroup) async {
-  if (!await isAuthenticated()) return;
 
-  final currentUser = _auth.currentUser;
-  if (currentUser == null) return;
+  Future<void> deleteMessageForMe(String chatId, String messageId, bool isGroup) async {
+    if (!await isAuthenticated()) return;
 
-  try {
-    final messageRef = _database.child(isGroup ? 'groups/$chatId/messages/$messageId' : 'chats/$chatId/messages/$messageId');
-    await messageRef.update({
-      'deletedFor.${currentUser.uid}': true,
-    });
-    print('Message $messageId deleted for user ${currentUser.uid} in ${isGroup ? 'group' : 'chat'} $chatId');
-  } catch (e) {
-    print('Error deleting message for me: $e');
-    if (e.toString().contains('permission_denied')) {
-      await refreshToken();
-    }
-    rethrow;
-  }
-}
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
 
-Future<void> deleteMessageForEveryone(String chatId, String messageId, bool isGroup) async {
-  if (!await isAuthenticated()) return;
-
-  final currentUser = _auth.currentUser;
-  if (currentUser == null) return;
-
-  try {
-    final messageRef = _database.child(isGroup ? 'groups/$chatId/messages/$messageId' : 'chats/$chatId/messages/$messageId');
-    final snapshot = await messageRef.once();
-    if (snapshot.snapshot.value != null) {
-      final messageData = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
-      if (messageData['senderId'] != currentUser.uid) {
-        throw Exception('Only the sender can delete this message for everyone');
-      }
+    try {
+      final messageRef = _database.child(isGroup ? 'groups/$chatId/messages/$messageId' : 'chats/$chatId/messages/$messageId');
       await messageRef.update({
-        'deleted': true,
-        'text': 'This message was deleted',
+        'deletedFor.${currentUser.uid}': true,
       });
-
-      // Update lastMessage if this was the most recent message
-      final messagesRef = _database.child(isGroup ? 'groups/$chatId/messages' : 'chats/$chatId/messages');
-      final query = messagesRef.orderByChild('timestamp').limitToLast(1);
-      final latestSnapshot = await query.once();
-      if (latestSnapshot.snapshot.value != null) {
-        final latestMessages = Map<String, dynamic>.from(latestSnapshot.snapshot.value as Map);
-        if (latestMessages.containsKey(messageId)) {
-          await _database.child(isGroup ? 'groups/$chatId' : 'chats/$chatId').update({
-            'lastMessage': 'This message was deleted',
-            'lastUpdated': ServerValue.timestamp,
-          });
-        }
+      print('Message $messageId deleted for user ${currentUser.uid} in ${isGroup ? 'group' : 'chat'} $chatId');
+    } catch (e) {
+      print('Error deleting message for me: $e');
+      if (e.toString().contains('permission_denied')) {
+        await refreshToken();
       }
-
-      print('Message $messageId deleted for everyone in ${isGroup ? 'group' : 'chat'} $chatId');
+      rethrow;
     }
-  } catch (e) {
-    print('Error deleting message for everyone: $e');
-    if (e.toString().contains('permission_denied')) {
-      await refreshToken();
-    }
-    rethrow;
   }
-}
+
+  Future<void> deleteMessageForEveryone(String chatId, String messageId, bool isGroup) async {
+    if (!await isAuthenticated()) return;
+
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final messageRef = _database.child(isGroup ? 'groups/$chatId/messages/$messageId' : 'chats/$chatId/messages/$messageId');
+      final snapshot = await messageRef.once();
+      if (snapshot.snapshot.value != null) {
+        final messageData = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+        if (messageData['senderId'] != currentUser.uid) {
+          throw Exception('Only the sender can delete this message for everyone');
+        }
+        await messageRef.update({
+          'deleted': true,
+          'text': 'This message was deleted',
+        });
+
+        // Update lastMessage if this was the most recent message
+        final messagesRef = _database.child(isGroup ? 'groups/$chatId/messages' : 'chats/$chatId/messages');
+        final query = messagesRef.orderByChild('timestamp').limitToLast(1);
+        final latestSnapshot = await query.once();
+        if (latestSnapshot.snapshot.value != null) {
+          final latestMessages = Map<String, dynamic>.from(latestSnapshot.snapshot.value as Map);
+          if (latestMessages.containsKey(messageId)) {
+            await _database.child(isGroup ? 'groups/$chatId' : 'chats/$chatId').update({
+              'lastMessage': 'This message was deleted',
+              'lastUpdated': ServerValue.timestamp,
+            });
+          }
+        }
+
+        print('Message $messageId deleted for everyone in ${isGroup ? 'group' : 'chat'} $chatId');
+      }
+    } catch (e) {
+      print('Error deleting message for everyone: $e');
+      if (e.toString().contains('permission_denied')) {
+        await refreshToken();
+      }
+      rethrow;
+    }
+  }
+
   void dispose() {
     _stopTokenRefreshTimer();
     _stopPresenceMonitoring();

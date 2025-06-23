@@ -6,7 +6,7 @@ String getFriendlyErrorMessage(dynamic error) {
       case 'invalid-email':
         return 'Please enter a valid email address.';
       case 'user-not-found':
-        return 'No account found with this email address.';
+        return 'No account found with this email address or it’s not linked to an email/password account. Please sign up or use a different sign-in method.';
       case 'wrong-password':
         return 'Incorrect email or password. Please try again.';
       case 'email-already-in-use':
@@ -22,7 +22,7 @@ String getFriendlyErrorMessage(dynamic error) {
       case 'operation-not-allowed':
         return 'This operation is not allowed. Please contact support.';
       default:
-        return 'An error occurred. Please try again later.';
+        return 'An error occurred: ${error.message}. Please try again.';
     }
   }
   return 'Something went wrong. Please try again.';

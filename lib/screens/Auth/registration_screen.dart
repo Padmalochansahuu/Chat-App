@@ -70,7 +70,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> with SingleTick
             Navigator.of(context).pop(); // Close notification
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              MaterialPageRoute(
+                builder: (_) => const LoginScreen(
+                  skipSessionCheck: true, // Pass flag to skip session check
+                ),
+              ),
             );
           }
         }

@@ -56,7 +56,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
             context: context,
             barrierDismissible: false,
             builder: (_) => const CustomNotification(
-              message: 'Password reset link sent to your email!',
+              message: '🎉 Password reset link sent to your email!',
               isError: false,
               type: NotificationType.success,
             ),
@@ -65,8 +65,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           await Future.delayed(const Duration(seconds: 2));
           
           if (mounted) {
-            Navigator.of(context).pop(); // close notification
-            Navigator.of(context).pop(); // back to login
+            Navigator.of(context).pop(); // Close notification
+            Navigator.of(context).pop(); // Back to login
           }
         }
       } catch (e) {
@@ -88,7 +88,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           
           await Future.delayed(const Duration(seconds: 3));
           if (mounted) {
-            Navigator.of(context).pop(); // close error notification
+            Navigator.of(context).pop(); // Close error notification
           }
         }
       }

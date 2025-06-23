@@ -9,7 +9,9 @@ import 'forgot_password_modal.dart';
 import '../Home/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool skipSessionCheck; // Added parameter to skip session check
+
+  const LoginScreen({super.key, this.skipSessionCheck = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -28,8 +30,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    // Check session
-    _checkSession();
+    // Check session only if skipSessionCheck is false
+    if (!widget.skipSessionCheck) {
+      _checkSession();
+    }
     // Initialize animation controller
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
