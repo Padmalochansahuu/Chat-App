@@ -315,8 +315,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
-  // --- UI BUILD METHOD: REDESIGNED FOR BETTER LOOKS ---
-
   @override
   Widget build(BuildContext context) {
     if (_currentUserId == null || _chatId == null) {
@@ -343,9 +341,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           });
         },
       ),
-      // THIS IS THE ONLY CHANGE: Added SafeArea to the body
       body: SafeArea(
-        top: false, // AppBar already handles the top safe area
+        top: false, 
         child: Column(
           children: [
             Expanded(
@@ -391,7 +388,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                             message['deletedFor'][_currentUserId] == true;
 
                         if (isDeletedForMe) {
-                          return const SizedBox.shrink(); // Hide message if deleted for me
+                          return const SizedBox.shrink(); 
                         }
 
                         return GestureDetector(
@@ -431,7 +428,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 }
 
-// --- ALL HELPER WIDGETS ARE UNCHANGED ---
+// --- WIDGETS SECTION ---
 
 class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String name;
@@ -468,38 +465,46 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   : null,
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(name, style: AppTheme.headline.copyWith(fontSize: 18, fontWeight: FontWeight.w600)),
-                if (!isGroup)
-                  StreamBuilder<DatabaseEvent>(
-                    stream: FirebaseDatabase.instance.ref('presence/$entityId').onValue,
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
-                        return const SizedBox(height: 1); // Maintain alignment
-                      }
-                      final data = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-                      final isOnline = data['isOnline'] == true;
-                      final lastSeen = data['lastSeen'] as int?;
-                      String statusText = 'last seen recently';
-                      if (isOnline) {
-                        statusText = 'Online';
-                      } else if (lastSeen != null) {
-                        final dt = DateTime.fromMillisecondsSinceEpoch(lastSeen);
-                        statusText = 'last seen ${DateFormat.yMd().add_jm().format(dt)}';
-                      }
-                      return Text(
-                        statusText,
-                        style: AppTheme.subtitle.copyWith(
-                          fontSize: 12,
-                          color: isOnline ? Colors.lightGreenAccent.shade100 : Colors.white70,
-                        ),
-                      );
-                    },
+            // THIS IS THE ONLY CHANGE TO FIX THE OVERFLOW
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    name,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.headline.copyWith(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
-              ],
+                  if (!isGroup)
+                    StreamBuilder<DatabaseEvent>(
+                      stream: FirebaseDatabase.instance.ref('presence/$entityId').onValue,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+                          return const SizedBox(height: 1); // Maintain alignment
+                        }
+                        final data = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+                        final isOnline = data['isOnline'] == true;
+                        final lastSeen = data['lastSeen'] as int?;
+                        String statusText = 'last seen recently';
+                        if (isOnline) {
+                          statusText = 'Online';
+                        } else if (lastSeen != null) {
+                          final dt = DateTime.fromMillisecondsSinceEpoch(lastSeen);
+                          statusText = 'last seen ${DateFormat.yMd().add_jm().format(dt)}';
+                        }
+                        return Text(
+                          statusText,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.subtitle.copyWith(
+                            fontSize: 12,
+                            color: isOnline ? Colors.lightGreenAccent.shade100 : Colors.white70,
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
             ),
           ],
         ),
@@ -516,6 +521,7 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
+// THE REST OF THE HELPER WIDGETS ARE UNCHANGED
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> message;
   final bool isSentByMe;
