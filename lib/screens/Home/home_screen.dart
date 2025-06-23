@@ -1,6 +1,4 @@
 
-
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -14,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:rxdart/rxdart.dart';
 
 // Main HomeScreen Widget
@@ -74,9 +73,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
 
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim().toLowerCase();
-      });
+      if (mounted) {
+        setState(() {
+          _searchQuery = _searchController.text.trim().toLowerCase();
+        });
+      }
     });
 
     _tabController = TabController(length: 2, vsync: this);
@@ -165,107 +166,114 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // --- BUILD METHOD (UI REDESIGNED & STABILIZED) ---
+  // --- NEW CUSTOM HEADER WIDGET ---
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      decoration: const BoxDecoration(
+        color: AppTheme.primaryColor,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 8, top: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Chats', style: AppTheme.headline),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.person_outline, color: Colors.white, size: 26),
+                        tooltip: 'Profile',
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/profile');
+                        },
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.white, size: 26),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        onSelected: (value) {
+                          if (value == 'logout') _logout();
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'logout',
+                            child: Row(
+                              children: [
+                                Icon(Icons.logout, color: Colors.red.shade400),
+                                const SizedBox(width: 8),
+                                const Text('Logout'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: Colors.black87),
+                decoration: AppTheme.textFieldDecoration('Search users or groups...').copyWith(
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          onPressed: () => _searchController.clear(),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'All'),
+                Tab(text: 'Groups'),
+              ],
+              labelColor: Colors.white,
+              labelStyle: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+              unselectedLabelColor: Colors.white.withOpacity(0.7),
+              indicator: UnderlineTabIndicator(
+                borderSide: BorderSide(width: 3.5, color: Colors.white.withOpacity(0.9)),
+                insets: const EdgeInsets.symmetric(horizontal: 40.0), // Creates the short line effect
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- BUILD METHOD (UI REDESIGNED) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-          ),
-        ),
-        title: Text('Chats', style: AppTheme.headline),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.white),
-            tooltip: 'Profile',
-            onPressed: () {
-              Navigator.pushNamed(context, '/profile');
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            onSelected: (value) {
-              if (value == 'logout') {
-                _logout();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.red.shade400),
-                    const SizedBox(width: 8),
-                    const Text('Logout'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: AppTheme.textFieldDecoration('Search users or groups...').copyWith(
-                      prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, color: AppTheme.primaryColor),
-                              onPressed: () {
-                                _searchController.clear();
-                              },
-                            )
-                          : null,
-                    ),
-                    style: AppTheme.body,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(text: 'All'),
-                      Tab(text: 'Groups'),
-                    ],
-                    labelStyle: AppTheme.buttonText.copyWith(fontSize: 14),
-                    unselectedLabelColor: Colors.white70,
-                    indicator: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildHeader(context),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -294,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 }
 
-// --- UTILITY & TAB WIDGETS (LOGIC UNCHANGED, UI IMPROVED) ---
+// --- UTILITY & TAB WIDGETS (UNCHANGED, but provided for completeness) ---
 
 class CombinedSnapshot {
   final List<QueryDocumentSnapshot> users;
@@ -496,7 +504,7 @@ class _GroupsTabState extends State<GroupsTab> with AutomaticKeepAliveClientMixi
   }
 }
 
-// --- TILE WIDGETS (UI REDESIGNED & BUGS FIXED, LOGIC UNCHANGED) ---
+// --- TILE WIDGETS (UNCHANGED) ---
 
 class UserTile extends StatefulWidget {
   final String userId;
@@ -855,4 +863,3 @@ class _GroupTileState extends State<GroupTile> {
     );
   }
 }
-
