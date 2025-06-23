@@ -15,6 +15,7 @@ class AppTheme {
     end: Alignment.bottomRight,
   );
 
+
   // Text styles using Poppins font
   static TextStyle headline = GoogleFonts.poppins(
     fontSize: 28,
