@@ -1,9 +1,9 @@
+
+import 'package:chatapp/screens/Onboarding/onboarding_screen.dart';
 import 'package:chatapp/services/auth_services.dart';
 import 'package:chatapp/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import '../Auth/login_screen.dart';
 import '../Home/home_screen.dart';
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => user != null ? const HomeScreen() : const LoginScreen(),
+          builder: (_) => user != null ? const HomeScreen() : const OnboardingScreen(),
         ),
       );
     }

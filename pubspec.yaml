@@ -48,6 +48,7 @@ dependencies:
   mockito: ^5.4.6
   async: ^2.13.0
   rxdart: ^0.28.0
+  smooth_page_indicator: ^1.2.1
 
 dev_dependencies:
   flutter_test:
