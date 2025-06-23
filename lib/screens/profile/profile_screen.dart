@@ -94,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 50, // Compress image to reduce size
+      imageQuality: 50,
     );
 
     if (pickedFile != null) {
@@ -119,11 +119,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         String photoUrl;
         if (kIsWeb) {
-          // For web, convert image to base64
           final bytes = await pickedFile.readAsBytes();
           photoUrl = base64Encode(bytes);
         } else {
-          // For mobile, save to local storage
           final directory = await getApplicationDocumentsDirectory();
           final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
           photoUrl = '${directory.path}/$fileName';
@@ -131,7 +129,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           await imageFile.copy(photoUrl);
         }
 
-        // Update database
         if (widget.isGroup && widget.entityId != null) {
           await _database.child('groups/${widget.entityId}/photoUrl').set(photoUrl);
         } else {
@@ -194,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         showDialog(
           context: context,
           builder: (context) => CustomNotification(
-            message: 'Not logged in',
+            message: 'Authentication failed',
             type: NotificationType.error,
           ),
         );
@@ -345,197 +342,462 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.isGroup ? 'Group Profile' : 'Profile',
-          style: AppTheme.headline.copyWith(fontSize: 20, color: Colors.white),
-        ),
-        backgroundColor: AppTheme.primaryColor,
-        elevation: 4,
-        actions: [
-          if (!widget.isGroup)
-            IconButton(
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Icon(Icons.logout, color: Colors.white),
-              onPressed: _isLoading ? null : _logout,
-              tooltip: 'Logout',
-            ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppTheme.primaryColor.withOpacity(0.2), Colors.white],
-          ),
-        ),
-        child: StreamBuilder(
-          stream: widget.isGroup && widget.entityId != null
-              ? kIsWeb
-                  ? FirebaseDatabase.instance.ref('groups/${widget.entityId}').onValue
-                  : _authService.getGroupData(widget.entityId!)
-              : _authService.firestore.collection('users').doc(user?.uid).snapshots(),
-          builder: (context, AsyncSnapshot snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              print('StreamBuilder error: ${snapshot.error}');
-              return Center(
-                child: Text(
-                  'Error loading profile: ${snapshot.error}',
-                  style: AppTheme.body,
-                  textAlign: TextAlign.center,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 600) {
+          // Web-specific layout
+          final maxWidth = 600.0;
+          final padding = 24.0;
+          final textScaleFactor = constraints.maxWidth > 1200 ? 1.2 : 1.0;
+          final avatarRadius = 100.0;
+
+          return Scaffold(
+            body: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [AppTheme.primaryColor.withOpacity(0.2), Colors.white],
                 ),
-              );
-            }
-            if (!snapshot.hasData) {
-              return Center(child: Text('No profile data available', style: AppTheme.body));
-            }
-
-            final data = widget.isGroup
-                ? (kIsWeb
-                    ? (snapshot.data.snapshot.value != null
-                        ? Map<String, dynamic>.from(snapshot.data.snapshot.value as Map)
-                        : {})
-                    : (snapshot.data as Map<String, dynamic>?) ?? {})
-                : (snapshot.data.data() as Map<String, dynamic>?) ?? {};
-            final username = widget.isGroup ? data['name'] ?? 'Unknown Group' : data['username'] ?? 'Unknown';
-            final email = widget.isGroup ? '' : data['email'] ?? 'No email';
-            final photoUrl = data['photoUrl'] as String? ?? _cachedPhotoUrl;
-            final status = data['status'] as String? ?? _status;
-
-            return ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                Center(
-                  child: Column(
-                    children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          CircleAvatar(
-                            radius: 80,
-                            backgroundImage: photoUrl != null
-                                ? (kIsWeb
-                                    ? (photoUrl.startsWith('data:image')
-                                        ? MemoryImage(base64Decode(photoUrl.split(',')[1]))
-                                        : null)
-                                    : File(photoUrl).existsSync()
-                                        ? FileImage(File(photoUrl))
-                                        : null)
-                                : null,
-                            backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                            child: photoUrl == null ||
-                                    (kIsWeb
-                                        ? !photoUrl.startsWith('data:image')
-                                        : !File(photoUrl).existsSync())
-                                ? Text(
-                                    username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                                    style: AppTheme.headline.copyWith(
-                                      fontSize: 60,
-                                      color: AppTheme.primaryColor,
+              ),
+              child: Column(
+                children: [
+                  // Custom AppBar for web
+                  Container(
+                    padding: EdgeInsets.all(padding),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        Expanded(
+                          child: Text(
+                            widget.isGroup ? 'Group Profile' : 'Profile',
+                            style: AppTheme.headline.copyWith(
+                              fontSize: 20 * textScaleFactor,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        if (!widget.isGroup)
+                          IconButton(
+                            icon: _isLoading
+                                ? SizedBox(
+                                    width: 20 * textScaleFactor,
+                                    height: 20 * textScaleFactor,
+                                    child: const CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
                                     ),
                                   )
-                                : null,
+                                : const Icon(Icons.logout, color: Colors.white),
+                            onPressed: _isLoading ? null : _logout,
+                            tooltip: 'Logout',
                           ),
-                          if (_isAdmin || !widget.isGroup)
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black26,
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(padding),
+                        child: Container(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: StreamBuilder(
+                            stream: widget.isGroup && widget.entityId != null
+                                ? kIsWeb
+                                    ? FirebaseDatabase.instance.ref('groups/${widget.entityId}').onValue
+                                    : _authService.getGroupData(widget.entityId!)
+                                : _authService.firestore.collection('users').doc(user?.uid).snapshots(),
+                            builder: (context, AsyncSnapshot snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                              if (snapshot.hasError) {
+                                print('StreamBuilder error: ${snapshot.error}');
+                                return Center(
+                                  child: Text(
+                                    'Error loading profile: ${snapshot.error}',
+                                    style: AppTheme.body,
+                                    textAlign: TextAlign.center,
                                   ),
+                                );
+                              }
+                              if (!snapshot.hasData) {
+                                return Center(child: Text('No profile data available', style: AppTheme.body));
+                              }
+
+                              final data = widget.isGroup
+                                  ? (kIsWeb
+                                      ? (snapshot.data.snapshot.value != null
+                                          ? Map<String, dynamic>.from(snapshot.data.snapshot.value as Map)
+                                          : {})
+                                      : (snapshot.data as Map<String, dynamic>?) ?? {})
+                                  : (snapshot.data.data() as Map<String, dynamic>?) ?? {};
+                              final username =
+                                  widget.isGroup ? data['name'] ?? 'Unknown Group' : data['username'] ?? 'Unknown';
+                              final email = widget.isGroup ? '' : data['email'] ?? 'No email';
+                              final photoUrl = data['photoUrl'] as String? ?? _cachedPhotoUrl;
+                              final status = data['status'] as String? ?? _status;
+
+                              return Column(
+                                children: [
+                                  Stack(
+                                    alignment: Alignment.bottomRight,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: avatarRadius,
+                                        backgroundImage: photoUrl != null
+                                            ? (kIsWeb
+                                                ? (photoUrl.startsWith('data:image')
+                                                    ? MemoryImage(base64Decode(photoUrl.split(',')[1]))
+                                                    : NetworkImage(photoUrl))
+                                                : File(photoUrl).existsSync()
+                                                    ? FileImage(File(photoUrl))
+                                                    : null)
+                                            : null,
+                                        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                                        child: photoUrl == null ||
+                                                (kIsWeb
+                                                    ? !photoUrl.startsWith('data:image') &&
+                                                        !photoUrl.startsWith('http')
+                                                    : !File(photoUrl).existsSync())
+                                            ? Text(
+                                                username.isNotEmpty ? username[0].toUpperCase() : 'U',
+                                                style: AppTheme.headline.copyWith(
+                                                  fontSize: avatarRadius * 0.75,
+                                                  color: AppTheme.primaryColor,
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                      if (_isAdmin || !widget.isGroup)
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black26,
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: IconButton(
+                                            icon: _isLoading
+                                                ? SizedBox(
+                                                    width: 20 * textScaleFactor,
+                                                    height: 20 * textScaleFactor,
+                                                    child: const CircularProgressIndicator(
+                                                      color: Colors.white,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Icon(Icons.camera_alt, color: Colors.white),
+                                            onPressed: _isLoading ? null : _pickAndSaveImage,
+                                            iconSize: 28 * textScaleFactor,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Text(
+                                    username,
+                                    style: AppTheme.headline.copyWith(
+                                      fontSize: 28 * textScaleFactor,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (!widget.isGroup) const SizedBox(height: 8),
+                                  if (!widget.isGroup)
+                                    Text(
+                                      email,
+                                      style: AppTheme.body.copyWith(
+                                        fontSize: 16 * textScaleFactor,
+                                        color: Colors.grey[600],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  const SizedBox(height: 16),
+                                  Card(
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    color: Colors.white,
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.info_outline,
+                                        color: AppTheme.primaryColor,
+                                        size: 24 * textScaleFactor,
+                                      ),
+                                      title: Text(
+                                        'About',
+                                        style: AppTheme.body.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 16 * textScaleFactor,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        status ?? 'Hey there! I am using this app.',
+                                        style: AppTheme.body.copyWith(
+                                          color: Colors.grey[700],
+                                          fontSize: 14 * textScaleFactor,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      trailing: Icon(
+                                        Icons.edit,
+                                        color: AppTheme.primaryColor,
+                                        size: 20 * textScaleFactor,
+                                      ),
+                                      onTap: (_isAdmin || !widget.isGroup) ? _showStatusDialog : null,
+                                    ),
+                                  ),
+                                  if (widget.isGroup && _isAdmin)
+                                    ListTile(
+                                      leading: Icon(
+                                        Icons.person_add,
+                                        color: AppTheme.primaryColor,
+                                        size: 24 * textScaleFactor,
+                                      ),
+                                      title: Text(
+                                        'Manage Members',
+                                        style: AppTheme.body.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 16 * textScaleFactor,
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => CustomNotification(
+                                            message: 'Member management coming soon!',
+                                            type: NotificationType.info,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                 ],
-                              ),
-                              child: IconButton(
-                                icon: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.camera_alt, color: Colors.white),
-                                onPressed: _isLoading ? null : _pickAndSaveImage,
-                                iconSize: 28,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        username,
-                        style: AppTheme.headline.copyWith(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (!widget.isGroup) const SizedBox(height: 8),
-                      if (!widget.isGroup)
-                        Text(
-                          email,
-                          style: AppTheme.body.copyWith(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                              );
+                            },
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      const SizedBox(height: 16),
-                      Card(
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        color: Colors.white,
-                        child: ListTile(
-                          leading: Icon(Icons.info_outline, color: AppTheme.primaryColor),
-                          title: Text(
-                            'About',
-                            style: AppTheme.body.copyWith(fontWeight: FontWeight.w500),
-                          ),
-                          subtitle: Text(
-                            status ?? 'Hey there! I am using this app.',
-                            style: AppTheme.body.copyWith(color: Colors.grey[700]),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Icon(Icons.edit, color: AppTheme.primaryColor),
-                          onTap: (_isAdmin || !widget.isGroup) ? _showStatusDialog : null,
                         ),
                       ),
-                      if (widget.isGroup && _isAdmin)
-                        ListTile(
-                          leading: Icon(Icons.person_add, color: AppTheme.primaryColor),
-                          title: Text('Manage Members', style: AppTheme.body.copyWith(fontWeight: FontWeight.w500)),
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => CustomNotification(
-                                message: 'Member management coming soon!',
-                                type: NotificationType.info,
-                              ),
-                            );
-                          },
-                        ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+          ));
+          } else {
+            // Original mobile layout (unchanged)
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(
+                  widget.isGroup ? 'Group Profile' : 'Profile',
+                  style: AppTheme.headline.copyWith(fontSize: 20, color: Colors.white),
+                ),
+                backgroundColor: AppTheme.primaryColor,
+                elevation: 4,
+                actions: [
+                  if (!widget.isGroup)
+                    IconButton(
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Icon(Icons.logout, color: Colors.white),
+                      onPressed: _isLoading ? null : _logout,
+                      tooltip: 'Logout',
+                    ),
+                ],
+              ),
+              body: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppTheme.primaryColor.withOpacity(0.2), Colors.white],
                   ),
                 ),
-              ],
+                child: StreamBuilder(
+                  stream: widget.isGroup && widget.entityId != null
+                      ? kIsWeb
+                          ? FirebaseDatabase.instance.ref('groups/${widget.entityId}').onValue
+                          : _authService.getGroupData(widget.entityId!)
+                      : _authService.firestore.collection('users').doc(user?.uid).snapshots(),
+                  builder: (context, AsyncSnapshot snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      print('StreamBuilder error: ${snapshot.error}');
+                      return Center(
+                        child: Text(
+                          'Error loading profile: ${snapshot.error}',
+                          style: AppTheme.body,
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return Center(child: Text('No profile data available', style: AppTheme.body));
+                    }
+
+                    final data = widget.isGroup
+                        ? (kIsWeb
+                            ? (snapshot.data.snapshot.value != null
+                                ? Map<String, dynamic>.from(snapshot.data.snapshot.value as Map)
+                                : {})
+                            : (snapshot.data as Map<String, dynamic>?) ?? {})
+                        : (snapshot.data.data() as Map<String, dynamic>?) ?? {};
+                    final username = widget.isGroup ? data['name'] ?? 'Unknown Group' : data['username'] ?? 'Unknown';
+                    final email = widget.isGroup ? '' : data['email'] ?? 'No email';
+                    final photoUrl = data['photoUrl'] as String? ?? _cachedPhotoUrl;
+                    final status = data['status'] as String? ?? _status;
+
+                    return ListView(
+                      padding: const EdgeInsets.all(16.0),
+                      children: [
+                        Center(
+                          child: Column(
+                            children: [
+                              Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 80,
+                                    backgroundImage: photoUrl != null
+                                        ? (kIsWeb
+                                            ? (photoUrl.startsWith('data:image')
+                                                ? MemoryImage(base64Decode(photoUrl.split(',')[1]))
+                                                : null)
+                                            : File(photoUrl).existsSync()
+                                                ? FileImage(File(photoUrl))
+                                                : null)
+                                        : null,
+                                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                                    child: photoUrl == null ||
+                                            (kIsWeb
+                                                ? !photoUrl.startsWith('data:image')
+                                                : !File(photoUrl).existsSync())
+                                        ? Text(
+                                            username.isNotEmpty ? username[0].toUpperCase() : 'U',
+                                            style: AppTheme.headline.copyWith(
+                                              fontSize: 60,
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  if (_isAdmin || !widget.isGroup)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: IconButton(
+                                        icon: _isLoading
+                                            ? const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                    color: Colors.white, strokeWidth: 2),
+                                              )
+                                            : const Icon(Icons.camera_alt, color: Colors.white),
+                                        onPressed: _isLoading ? null : _pickAndSaveImage,
+                                        iconSize: 28,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                username,
+                                style: AppTheme.headline.copyWith(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              if (!widget.isGroup) const SizedBox(height: 8),
+                              if (!widget.isGroup)
+                                Text(
+                                  email,
+                                  style: AppTheme.body.copyWith(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              const SizedBox(height: 16),
+                              Card(
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                color: Colors.white,
+                                child: ListTile(
+                                  leading: Icon(Icons.info_outline, color: AppTheme.primaryColor),
+                                  title: Text(
+                                    'About',
+                                    style: AppTheme.body.copyWith(fontWeight: FontWeight.w500),
+                                  ),
+                                  subtitle: Text(
+                                    status ?? 'Hey there! I am using this app.',
+                                    style: AppTheme.body.copyWith(color: Colors.grey[700]),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: Icon(Icons.edit, color: AppTheme.primaryColor),
+                                  onTap: (_isAdmin || !widget.isGroup) ? _showStatusDialog : null,
+                                ),
+                              ),
+                              if (widget.isGroup && _isAdmin)
+                                ListTile(
+                                  leading: Icon(Icons.person_add, color: AppTheme.primaryColor),
+                                  title: Text('Manage Members', style: AppTheme.body.copyWith(fontWeight: FontWeight.w500)),
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => CustomNotification(
+                                        message: 'Member management coming soon!',
+                                        type: NotificationType.info,
+                                      ),
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             );
-          },
-        ),
-      ),
-    );
-  }
-}
+          }
+    });
+ 
+  }}
