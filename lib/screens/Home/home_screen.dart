@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -32,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _currentUserId;
   TabController? _tabController;
   Stream<CombinedSnapshot>? _combinedStream;
+  StreamSubscription<CombinedSnapshot>? _combinedStreamSubscription; // Manage subscription
 
   @override
   void initState() {
@@ -69,7 +69,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
 
     _tabController = TabController(length: 2, vsync: this);
+    _initializeStream();
+  }
+
+  void _initializeStream() {
+    // Initialize the combined stream only once
     _combinedStream = combineStreams().asBroadcastStream();
+    // Optional: Log to debug stream initialization
+    print('Combined stream initialized: $_combinedStream');
   }
 
   @override
@@ -77,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _searchController.dispose();
     _fabController.dispose();
     _tabController?.dispose();
+    _combinedStreamSubscription?.cancel(); // Cancel stream subscription
     _authService.dispose();
     super.dispose();
   }
@@ -122,27 +130,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _addUsers() {
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => CustomNotification(
-          message: 'Add users via registration or Firestore!',
-          type: NotificationType.info,
-        ),
-      );
-    }
-  }
 
-  String _getChatId(String userId1, String userId2) {
-    return userId1.compareTo(userId2) < 0 ? '${userId1}_$userId2' : '${userId2}_$userId1';
-  }
 
   Stream<CombinedSnapshot> combineStreams() {
     return CombineLatestStream.combine2(
       _authService.firestore.collection('users').snapshots(),
       _database.child('groups').onValue,
       (QuerySnapshot usersSnapshot, DatabaseEvent groupsEvent) {
+        print('Combining streams: users=${usersSnapshot.docs.length}, groups=${groupsEvent.snapshot.value != null}');
         final users = usersSnapshot.docs
             .where((doc) => doc.id != _currentUserId && (_searchQuery.isEmpty || doc['username'].toString().toLowerCase().contains(_searchQuery)))
             .toList();
@@ -237,8 +232,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildAllTab(),
-                _buildGroupsTab(),
+                AllTab(combinedStream: _combinedStream, isOnline: _isOnline, currentUserId: _currentUserId),
+                GroupsTab(database: _database, searchQuery: _searchQuery, currentUserId: _currentUserId, isOnline: _isOnline),
               ],
             ),
           ),
@@ -260,12 +255,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+}
 
-  Widget _buildAllTab() {
+// New widget for All tab to keep state alive
+class AllTab extends StatefulWidget {
+  final Stream<CombinedSnapshot>? combinedStream;
+  final bool isOnline;
+  final String? currentUserId;
+
+  const AllTab({super.key, this.combinedStream, required this.isOnline, this.currentUserId});
+
+  @override
+  State<AllTab> createState() => _AllTabState();
+}
+
+class _AllTabState extends State<AllTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  void _addUsers(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => CustomNotification(
+        message: 'Add users via registration or Firestore!',
+        type: NotificationType.info,
+      ),
+    );
+  }
+
+  String _getChatId(String userId1, String userId2) {
+    return userId1.compareTo(userId2) < 0 ? '${userId1}_$userId2' : '${userId2}_$userId1';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return StreamBuilder<CombinedSnapshot>(
-      stream: _combinedStream,
+      stream: widget.combinedStream,
       builder: (context, AsyncSnapshot<CombinedSnapshot> snapshot) {
-        if (!_isOnline && !snapshot.hasData) {
+        print('StreamBuilder for All tab: connectionState=${snapshot.connectionState}');
+        if (!widget.isOnline && !snapshot.hasData) {
           return Center(
             child: Text(
               'No internet connection. Showing cached data.',
@@ -278,6 +307,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
+          print('StreamBuilder error: ${snapshot.error}');
           return Center(
             child: Text(
               'Error loading data: ${snapshot.error}',
@@ -308,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _addUsers,
+                  onPressed: () => _addUsers(context),
                   style: AppTheme.elevatedButtonStyle.copyWith(
                     backgroundColor: WidgetStateProperty.all(AppTheme.primaryColor),
                   ),
@@ -365,8 +395,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 photoUrl: user['photoUrl'],
                 lastSeen: (user['lastSeen'] as Timestamp?)?.toDate(),
                 lastMessage: user['lastMessage'] ?? 'No messages yet',
-                chatId: _currentUserId != null ? _getChatId(_currentUserId!, user.id) : null,
-                currentUserId: _currentUserId,
+                chatId: widget.currentUserId != null ? _getChatId(widget.currentUserId!, user.id) : null,
+                currentUserId: widget.currentUserId,
               );
             } else {
               final group = item['data'] as Map<String, dynamic>;
@@ -375,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 name: group['name'],
                 photoUrl: group['photoUrl'],
                 lastMessage: group['lastMessage'] ?? 'No messages yet',
-                currentUserId: _currentUserId,
+                currentUserId: widget.currentUserId,
               );
             }
           }).toList(),
@@ -383,12 +413,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
     );
   }
+}
 
-  Widget _buildGroupsTab() {
+// New widget for Groups tab to keep state alive
+class GroupsTab extends StatefulWidget {
+  final DatabaseReference database;
+  final String searchQuery;
+  final String? currentUserId;
+  final bool isOnline;
+
+  const GroupsTab({
+    super.key,
+    required this.database,
+    required this.searchQuery,
+    this.currentUserId,
+    required this.isOnline,
+  });
+
+  @override
+  State<GroupsTab> createState() => _GroupsTabState();
+}
+
+class _GroupsTabState extends State<GroupsTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return StreamBuilder<DatabaseEvent>(
-      stream: _database.child('groups').onValue,
+      stream: widget.database.child('groups').onValue,
       builder: (context, snapshot) {
-        if (!_isOnline && !snapshot.hasData) {
+        print('StreamBuilder for Groups tab: connectionState=${snapshot.connectionState}');
+        if (!widget.isOnline && !snapshot.hasData) {
           return Center(
             child: Text(
               'No internet connection. Showing cached data.',
@@ -401,6 +458,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
+          print('StreamBuilder error: ${snapshot.error}');
           return Center(
             child: Text(
               'Error loading groups: ${snapshot.error}',
@@ -441,8 +499,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ...Map<String, dynamic>.from(entry.value as Map),
                 })
             .where((group) =>
-                _searchQuery.isEmpty || group['name'].toString().toLowerCase().contains(_searchQuery))
-            .where((group) => group['members'] != null && (group['members'] as Map).containsKey(_currentUserId))
+                widget.searchQuery.isEmpty || group['name'].toString().toLowerCase().contains(widget.searchQuery))
+            .where((group) => group['members'] != null && (group['members'] as Map).containsKey(widget.currentUserId))
             .toList();
 
         groups.sort((a, b) {
@@ -459,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               name: group['name'],
               photoUrl: group['photoUrl'],
               lastMessage: group['lastMessage'] ?? 'No messages yet',
-              currentUserId: _currentUserId,
+              currentUserId: widget.currentUserId,
             );
           }).toList(),
         );
@@ -474,6 +532,9 @@ class CombinedSnapshot {
 
   CombinedSnapshot({required this.users, required this.groups});
 }
+
+// Rest of the file (UserTile and GroupTile) remains unchanged
+// ... [UserTile and GroupTile code as provided]
 
 
 class UserTile extends StatefulWidget {
