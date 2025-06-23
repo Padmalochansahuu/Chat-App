@@ -332,15 +332,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         ],
       ),
       body: Container(
-        // WhatsApp-like background
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/chat_background.png'), // You can add your own image
+            image: AssetImage('assets/images/pattern.png'), 
             fit: BoxFit.cover,
             opacity: 0.1, // Make it subtle
           ),
-          // Alternative: Custom pattern background
-          color: Color(0xFFE5DDD5), // WhatsApp-like beige color
+          color: Color(0xFFE5DDD5), 
         ),
         child: Column(
           children: [
