@@ -54,6 +54,7 @@ To build a **modern**, **responsive**, and **reliable** chat application using o
 - 🛑 **Message Deletion**: Delete messages (for me/for everyone)
 - 🧑‍🤝‍🧑 **Group Management**: Custom group creation with selected users
 - 🧠 **Smart Scroll**: Automatically scroll to the latest message with smooth animation
+- ⚛️ **Onboarding SCreen**: Advanced Animated UI 
 
 ---
 
