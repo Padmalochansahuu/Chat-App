@@ -14,10 +14,10 @@ To build a **modern**, **responsive**, and **reliable** chat application using o
 
 - **Frontend:** Flutter (Android, iOS, Web)
 - **Backend:** Firebase
-  - **Authentication:** Email & Password only (No Google/Anonymous login)
+  - **Authentication:** Email & Password only 
   - **Cloud Firestore:** User metadata, presence tracking
   - **Realtime Database:** Storing chat messages
-  - **Local Storage:** `shared_preferences` or `Hive` for persistent local sessions
+  - **Local Storage:** `shared_preferences` for persistent local sessions
 
 ---
 
@@ -54,7 +54,6 @@ To build a **modern**, **responsive**, and **reliable** chat application using o
 - 🛑 **Message Deletion**: Delete messages (for me/for everyone)
 - 🧑‍🤝‍🧑 **Group Management**: Custom group creation with selected users
 - 🧠 **Smart Scroll**: Automatically scroll to the latest message with smooth animation
-- 📲 **Deep Linking Ready**: Future-ready for invite/shareable chat links
 
 ---
 
@@ -108,18 +107,8 @@ To build a **modern**, **responsive**, and **reliable** chat application using o
 ## 🎨 UI & UX Design Highlights
 
 - Smooth screen transitions using `PageRouteBuilder` or `Hero` animations
-- Theme-adaptive color palette (light/dark mode ready)
 - Custom animated typing indicators
 - Toasts/snackbars for feedback (e.g., “Message sent”, “User is typing”)
-- Lottie animations for onboarding and no-data screens
-
----
-
-## 🚧 Limitations
-
-- ❌ No media attachments (images, video, docs)
-- ❌ No push notifications (can be added later)
-- ❌ No voice/video calls (text-only communication)
 
 ---
 
@@ -127,25 +116,6 @@ To build a **modern**, **responsive**, and **reliable** chat application using o
 
 - Only **Email & Password** login/registration
 - Firebase Authentication rules applied for all reads/writes
-- No Google, phone, or anonymous auth to reduce dependencies
 
 ---
-
-## 🚀 Future Enhancements (Optional)
-
-- Push Notifications (Firebase Cloud Messaging)
-- Admin panel for user management
-- Firebase Functions for moderation
-- UI themes and custom avatars
-
----
-
-## 📦 Project Status
-
-> ✅ **UI & architecture completed**  
-> 🚧 Code implementation in progress (message to enable code)
-
----
-
-Let me know when you're ready to start coding — I can guide you through each part step-by-step or generate a production-ready codebase.
 
