@@ -213,65 +213,266 @@ class AuthService {
     }
   }
 
-  Future<bool> checkEmailExists(String email) async {
-    try {
-      final normalizedEmail = _normalizeEmail(email);
-      print('Checking if email exists: $normalizedEmail');
-      if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(normalizedEmail)) {
-        print('Invalid email format: $normalizedEmail');
-        throw FirebaseAuthException(
-          code: 'invalid-email',
-          message: 'The email address is badly formatted.',
-        );
-      }
-      final signInMethods = await _auth.fetchSignInMethodsForEmail(normalizedEmail);
-      print('Sign-in methods for $normalizedEmail: $signInMethods');
-      return signInMethods.isNotEmpty;
-    } catch (e) {
-      print('Error checking email: $e');
-      // Handle specific Firebase errors
-      if (e is FirebaseAuthException && e.code == 'invalid-email') {
-        throw e; // Rethrow invalid email errors
-      }
-      // For other errors (e.g., network issues), assume email might exist to avoid false negatives
+  // Future<bool> checkEmailExists(String email) async {
+  //   try {
+  //     final normalizedEmail = _normalizeEmail(email);
+  //     print('Checking if email exists: $normalizedEmail');
+  //     if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(normalizedEmail)) {
+  //       print('Invalid email format: $normalizedEmail');
+  //       throw FirebaseAuthException(
+  //         code: 'invalid-email',
+  //         message: 'The email address is badly formatted.',
+  //       );
+  //     }
+  //     final signInMethods = await _auth.fetchSignInMethodsForEmail(normalizedEmail);
+  //     print('Sign-in methods for $normalizedEmail: $signInMethods');
+  //     return signInMethods.isNotEmpty;
+  //   } catch (e) {
+  //     print('Error checking email: $e');
+  //     // Handle specific Firebase errors
+  //     if (e is FirebaseAuthException && e.code == 'invalid-email') {
+  //       throw e; // Rethrow invalid email errors
+  //     }
+  //     // For other errors (e.g., network issues), assume email might exist to avoid false negatives
+  //     return true;
+  //   }
+  // }
+
+  // Future<void> sendPasswordResetEmail(String email) async {
+  //   try {
+  //     final normalizedEmail = _normalizeEmail(email);
+  //     print('Initiating password reset for email: $normalizedEmail');
+  //     if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(normalizedEmail)) {
+  //       throw FirebaseAuthException(
+  //         code: 'invalid-email',
+  //         message: 'Please enter a valid email address.',
+  //       );
+  //     }
+  //     await _auth.sendPasswordResetEmail(email: normalizedEmail);
+  //     print('Password reset email sent successfully to: $normalizedEmail');
+  //   } catch (e) {
+  //     print('Error sending password reset email: $e');
+  //     // Handle specific Firebase errors
+  //     if (e is FirebaseAuthException) {
+  //       if (e.code == 'user-not-found') {
+  //         throw FirebaseAuthException(
+  //           code: 'user-not-found',
+  //           message: 'No account found with this email address.',
+  //         );
+  //       } else if (e.code == 'invalid-email') {
+  //         throw e;
+  //       }
+  //     }
+  //     // For other errors, throw a generic error
+  //     throw FirebaseAuthException(
+  //       code: 'unknown-error',
+  //       message: 'Unable to send password reset email. Please try again.',
+  //     );
+  //   }
+  // }
+
+// Updated methods in auth_services.dart
+
+Future<bool> checkEmailExists(String email) async {
+  try {
+    final normalizedEmail = _normalizeEmail(email);
+    print('Checking if email exists: $normalizedEmail');
+    
+    // Validate email format first
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(normalizedEmail)) {
+      print('Invalid email format: $normalizedEmail');
+      throw FirebaseAuthException(
+        code: 'invalid-email',
+        message: 'The email address is badly formatted.',
+      );
+    }
+
+    // Try to fetch sign-in methods
+    final signInMethods = await _auth.fetchSignInMethodsForEmail(normalizedEmail);
+    print('Sign-in methods for $normalizedEmail: $signInMethods');
+    
+    // If we get sign-in methods, the email definitely exists
+    if (signInMethods.isNotEmpty) {
+      print('Email exists - found sign-in methods: $signInMethods');
       return true;
     }
-  }
-
-  Future<void> sendPasswordResetEmail(String email) async {
+    
+    // If empty array, try checking Firestore as backup
+    // This helps catch cases where fetchSignInMethodsForEmail fails
     try {
-      final normalizedEmail = _normalizeEmail(email);
-      print('Initiating password reset for email: $normalizedEmail');
-      if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(normalizedEmail)) {
-        throw FirebaseAuthException(
-          code: 'invalid-email',
-          message: 'Please enter a valid email address.',
-        );
+      final userQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: normalizedEmail)
+          .limit(1)
+          .get();
+      
+      if (userQuery.docs.isNotEmpty) {
+        print('Email found in Firestore: $normalizedEmail');
+        return true;
       }
-      await _auth.sendPasswordResetEmail(email: normalizedEmail);
-      print('Password reset email sent successfully to: $normalizedEmail');
-    } catch (e) {
-      print('Error sending password reset email: $e');
-      // Handle specific Firebase errors
-      if (e is FirebaseAuthException) {
-        if (e.code == 'user-not-found') {
+    } catch (firestoreError) {
+      print('Firestore check failed: $firestoreError');
+      // Continue with the original result if Firestore check fails
+    }
+    
+    print('Email not found: $normalizedEmail');
+    return false;
+    
+  } catch (e) {
+    print('Error checking email: $e');
+    
+    // Handle specific Firebase errors
+    if (e is FirebaseAuthException) {
+      if (e.code == 'invalid-email') {
+        throw e; // Rethrow invalid email errors
+      }
+      // For other Firebase Auth errors, we'll be conservative and assume email exists
+      // to avoid false negatives due to network issues or other temporary problems
+      print('Firebase Auth error occurred, assuming email exists to be safe: ${e.code}');
+      return true;
+    }
+    
+    // For other errors (e.g., network issues), assume email might exist to avoid false negatives
+    print('Unknown error occurred, assuming email exists to be safe');
+    return true;
+  }
+}
+
+// Alternative approach: Direct password reset with better error handling
+Future<void> sendPasswordResetEmail(String email) async {
+  try {
+    final normalizedEmail = _normalizeEmail(email);
+    print('Initiating password reset for email: $normalizedEmail');
+    
+    // Validate email format first
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(normalizedEmail)) {
+      throw FirebaseAuthException(
+        code: 'invalid-email',
+        message: 'Please enter a valid email address.',
+      );
+    }
+    
+    // Try to send password reset email directly
+    // Firebase will handle the user existence check internally
+    print('Sending password reset email to: $normalizedEmail');
+    await _auth.sendPasswordResetEmail(email: normalizedEmail);
+    print('Password reset email request processed for: $normalizedEmail');
+    
+    // Note: Firebase may not actually send an email if the user doesn't exist,
+    // but it won't throw an error for security reasons
+    
+  } catch (e) {
+    print('Error sending password reset email: $e');
+    
+    // Handle specific Firebase errors
+    if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'user-not-found':
+          // This error is rare with sendPasswordResetEmail, but handle it
           throw FirebaseAuthException(
             code: 'user-not-found',
             message: 'No account found with this email address.',
           );
-        } else if (e.code == 'invalid-email') {
+        case 'invalid-email':
           throw e;
-        }
+        case 'too-many-requests':
+          throw FirebaseAuthException(
+            code: 'too-many-requests',
+            message: 'Too many requests. Please try again later.',
+          );
+        case 'network-request-failed':
+          throw FirebaseAuthException(
+            code: 'network-request-failed',
+            message: 'Network error. Please check your connection.',
+          );
+        default:
+          throw FirebaseAuthException(
+            code: 'unknown-error',
+            message: 'Unable to send password reset email. Please try again.',
+          );
       }
-      // For other errors, throw a generic error
-      throw FirebaseAuthException(
-        code: 'unknown-error',
-        message: 'Unable to send password reset email. Please try again.',
-      );
     }
+    
+    // For other errors, throw a generic error
+    throw FirebaseAuthException(
+      code: 'unknown-error',
+      message: 'Unable to send password reset email. Please try again.',
+    );
   }
+}
 
-
+// Alternative: Enhanced email verification with multiple checks
+Future<bool> verifyEmailExistsComprehensive(String email) async {
+  try {
+    final normalizedEmail = _normalizeEmail(email);
+    print('Comprehensive email verification for: $normalizedEmail');
+    
+    // Step 1: Check Firebase Auth
+    try {
+      final signInMethods = await _auth.fetchSignInMethodsForEmail(normalizedEmail);
+      if (signInMethods.isNotEmpty) {
+        print('Email verified via Firebase Auth: $normalizedEmail');
+        return true;
+      }
+    } catch (authError) {
+      print('Firebase Auth check failed: $authError');
+    }
+    
+    // Step 2: Check Firestore users collection
+    try {
+      final userQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: normalizedEmail)
+          .limit(1)
+          .get();
+      
+      if (userQuery.docs.isNotEmpty) {
+        print('Email verified via Firestore: $normalizedEmail');
+        return true;
+      }
+    } catch (firestoreError) {
+      print('Firestore check failed: $firestoreError');
+    }
+    
+    // Step 3: Try a different approach - attempt to create account with existing email
+    // This will throw an error if email already exists
+    try {
+      // Create a temporary password for testing
+      const tempPassword = 'TempPassword123!@#';
+      await _auth.createUserWithEmailAndPassword(
+        email: normalizedEmail,
+        password: tempPassword,
+      );
+      
+      // If we reach here, the email was available (didn't exist)
+      // Delete the temporary account we just created
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        await currentUser.delete();
+        print('Temporary account deleted');
+      }
+      
+      print('Email is available (does not exist): $normalizedEmail');
+      return false;
+      
+    } catch (createError) {
+      if (createError is FirebaseAuthException && 
+          createError.code == 'email-already-in-use') {
+        print('Email verified via creation attempt: $normalizedEmail');
+        return true;
+      }
+      print('Account creation test failed: $createError');
+    }
+    
+    print('Could not definitively verify email existence: $normalizedEmail');
+    return false;
+    
+  } catch (e) {
+    print('Comprehensive email verification failed: $e');
+    // Return true to be conservative - better to attempt reset than block valid users
+    return true;
+  }
+}
 
   Future<void> updatePresence(bool isOnline) async {
     final currentUser = _auth.currentUser;

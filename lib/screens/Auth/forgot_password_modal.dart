@@ -40,64 +40,142 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     _controller.forward();
   }
 
-  void _sendResetEmail() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+  // void _sendResetEmail() async {
+  //   if (_formKey.currentState!.validate()) {
+  //     setState(() => _isLoading = true);
 
-      try {
-        final email = _emailController.text.trim().toLowerCase();
-        print('Attempting to send password reset email for: $email');
+  //     try {
+  //       final email = _emailController.text.trim().toLowerCase();
+  //       print('Attempting to send password reset email for: $email');
         
-        await AuthService().sendPasswordResetEmail(email);
+  //       await AuthService().sendPasswordResetEmail(email);
 
-        if (mounted) {
-          print('Password reset email sent successfully for: $email');
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const CustomNotification(
-              message: '🎉 Password reset link sent to your email!',
-              isError: false,
-              type: NotificationType.success,
-            ),
-          );
+  //       if (mounted) {
+  //         print('Password reset email sent successfully for: $email');
+  //         showDialog(
+  //           context: context,
+  //           barrierDismissible: false,
+  //           builder: (_) => const CustomNotification(
+  //             message: '🎉 Password reset link sent to your email!',
+  //             isError: false,
+  //             type: NotificationType.success,
+  //           ),
+  //         );
           
-          await Future.delayed(const Duration(seconds: 2));
+  //         await Future.delayed(const Duration(seconds: 2));
           
-          if (mounted) {
-            Navigator.of(context).pop(); // Close notification
-            Navigator.of(context).pop(); // Back to login
-          }
-        }
-      } catch (e) {
-        print('Error sending password reset email: $e');
-        if (mounted) {
-          String errorMessage = getFriendlyErrorMessage(e);
-          print('Friendly error message displayed to user: $errorMessage');
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => CustomNotification(
-              message: '❌ $errorMessage',
-              isError: true,
-              type: errorMessage.contains('No account found') 
-                  ? NotificationType.emailNotFound 
-                  : NotificationType.error,
-            ),
-          );
+  //         if (mounted) {
+  //           Navigator.of(context).pop(); // Close notification
+  //           Navigator.of(context).pop(); // Back to login
+  //         }
+  //       }
+  //     } catch (e) {
+  //       print('Error sending password reset email: $e');
+  //       if (mounted) {
+  //         String errorMessage = getFriendlyErrorMessage(e);
+  //         print('Friendly error message displayed to user: $errorMessage');
+  //         showDialog(
+  //           context: context,
+  //           barrierDismissible: false,
+  //           builder: (_) => CustomNotification(
+  //             message: '❌ $errorMessage',
+  //             isError: true,
+  //             type: errorMessage.contains('No account found') 
+  //                 ? NotificationType.emailNotFound 
+  //                 : NotificationType.error,
+  //           ),
+  //         );
           
-          await Future.delayed(const Duration(seconds: 3));
-          if (mounted) {
-            Navigator.of(context).pop(); // Close error notification
-          }
-        }
-      }
+  //         await Future.delayed(const Duration(seconds: 3));
+  //         if (mounted) {
+  //           Navigator.of(context).pop(); // Close error notification
+  //         }
+  //       }
+  //     }
+
+  //     if (mounted) {
+  //       setState(() => _isLoading = false);
+  //     }
+  //   }
+  // }
+
+// Updated _sendResetEmail method in forgot_password_modal.dart
+// This approach is more reliable and user-friendly
+
+void _sendResetEmail() async {
+  if (_formKey.currentState!.validate()) {
+    setState(() => _isLoading = true);
+
+    try {
+      final email = _emailController.text.trim().toLowerCase();
+      print('Attempting to send password reset email for: $email');
+      
+      // Approach 1: Try direct password reset (recommended)
+      // Firebase handles existence check internally and won't expose user info
+      await AuthService().sendPasswordResetEmail(email);
 
       if (mounted) {
-        setState(() => _isLoading = false);
+        print('Password reset email request processed for: $email');
+        
+        // Show success message regardless of whether email exists
+        // This is a security best practice to not reveal user information
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => CustomNotification(
+            message: '📧 If an account with this email exists, a password reset link has been sent.',
+            isError: false,
+            type: NotificationType.success,
+          ),
+        );
+        
+        await Future.delayed(const Duration(seconds: 3));
+        
+        if (mounted) {
+          Navigator.of(context).pop(); // Close notification
+          Navigator.of(context).pop(); // Back to login
+        }
+      }
+    } catch (e) {
+      print('Error sending password reset email: $e');
+      if (mounted) {
+        String errorMessage = getFriendlyErrorMessage(e);
+        print('Friendly error message displayed to user: $errorMessage');
+        
+        // Only show specific errors for technical issues, not user existence
+        NotificationType notificationType = NotificationType.error;
+        if (errorMessage.contains('Too many requests')) {
+          notificationType = NotificationType.warning;
+        } else if (errorMessage.contains('Network error') || 
+                   errorMessage.contains('connection')) {
+          notificationType = NotificationType.warning;
+        }
+        
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => CustomNotification(
+            message: '❌ $errorMessage',
+            isError: true,
+            type: notificationType,
+          ),
+        );
+        
+        await Future.delayed(const Duration(seconds: 3));
+        if (mounted) {
+          Navigator.of(context).pop(); // Close error notification
+        }
       }
     }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
+}
+
+// Alternative approach if you want to verify email existence first
+
 
   @override
   void dispose() {
